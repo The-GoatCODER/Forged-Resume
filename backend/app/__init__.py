@@ -2,11 +2,11 @@ import json
 import sqlite3
 from flask import Flask
 from flask_cors import CORS
-from .routes import resume_api, DB_FILE
+from .routes import resume_api, DB_FILE, get_db_connection
 
 def init_db():
     """Initializes SQLite layout tracking matching your exact layout state format."""
-    conn = sqlite3.connect(DB_FILE)
+    conn = get_db_connection()  # uses the same absolute path as routes.py
     cursor = conn.cursor()
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS resume_store (
@@ -15,11 +15,9 @@ def init_db():
             resume_data TEXT
         )
     ''')
-    
-    # Check if a structural model payload has been saved before
+
     cursor.execute("SELECT COUNT(*) FROM resume_store WHERE id = 1")
     if cursor.fetchone()[0] == 0:
-        # Pre-seed template structured exactly like your React useState object
         default_resume = {
             "title": "Premium Resume Profile",
             "basics": {
@@ -45,14 +43,14 @@ def init_db():
 
 def create_app():
     app = Flask(__name__)
-    
-    # Fully open CORS rules so your local frontend (localhost:5173) faces zero request blocks
+
+    # Fully open CORS so localhost:5173 faces zero request blocks
     CORS(app, resources={r"/api/*": {"origins": "*"}})
-    
-    # Ensure database validation on start
+
+    # Ensure database and table exist on every cold start
     init_db()
-    
-    # Register your Blueprint routes seamlessly
+
+    # Register Blueprint routes
     app.register_blueprint(resume_api)
-    
+
     return app
