@@ -1,6 +1,6 @@
+
 import { useState, useEffect, useRef } from "react";
 import axios from "axios";
-import html2pdf from "html2pdf.js";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -142,25 +142,66 @@ function App() {
   const [exporting, setExporting] = useState(false);
   const previewRef = useRef(null);
 
-  useEffect(() => {
+ 
+useEffect(() => {
     const link = document.createElement("link");
     link.href = "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap";
     link.rel = "stylesheet";
     document.head.appendChild(link);
 
-    const style = document.createElement("style");
-    style.textContent = `
-      * { box-sizing: border-box; }
-      body { margin: 0; background: #080810; }
-      ::-webkit-scrollbar { width: 4px; }
-      ::-webkit-scrollbar-track { background: transparent; }
-      ::-webkit-scrollbar-thumb { background: #1e2d3d; border-radius: 4px; }
-      @media print {
-        .editor-panel { display: none !important; }
-        .preview-wrap { padding: 0 !important; background: white !important; }
-      }
-    `;
-    document.head.appendChild(style);
+    // Only add style once
+    if (!document.getElementById("resume-global-style")) {
+      const style = document.createElement("style");
+      style.id = "resume-global-style";
+      style.textContent = `
+        * { box-sizing: border-box; }
+        body { margin: 0; background: #080810; }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #1e2d3d; border-radius: 4px; }
+  @media print {
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 210mm !important;
+    height: 297mm !important;
+    background: white !important;
+  }
+  .editor-panel {
+    display: none !important;
+  }
+  .preview-wrap {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 210mm !important;
+    height: 297mm !important;
+    display: block !important;
+    overflow: hidden !important;
+    background: white !important;
+  }
+  .preview-wrap > div {
+    width: 210mm !important;
+    height: 297mm !important;
+    box-shadow: none !important;
+    transform: none !important;
+    overflow: hidden !important;
+  }
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+}
+      `;
+      document.head.appendChild(style);
+    }
+
     fetchResume();
   }, []);
 
@@ -180,57 +221,21 @@ function App() {
       alert("Error: " + e.response?.data?.message);
     }
   };
-const exportPDF = async (e) => {
-  e.preventDefault();
 
-  const element = previewRef.current;
-  if (!element) return;
+  const exportPDF = async (e) => {
+    e.preventDefault();
+    setExporting(true);
 
-  setExporting(true);
+    // Auto-save before printing
+    try {
+      await axios.post(API_URL, resume);
+    } catch (err) {
+      // continue even if save fails
+    }
 
-  // Auto-save before exporting
-  try {
-    await axios.post(API_URL, resume);
-  } catch (err) {
-    // continue even if save fails
-  }
-
-  const fileName = resume.basics.full_name
-    ? `${resume.basics.full_name.replace(/\s+/g, "_")}_Resume.pdf`
-    : "Resume.pdf";
-
-  // Small delay so React can render "Generating PDF..." before freezing
-  setTimeout(() => {
-    const options = {
-      margin: 0,
-      filename: fileName,
-      image: { type: "jpeg", quality: 0.98 },
-      html2canvas: {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        letterRendering: true,
-        scrollX: 0,
-        scrollY: 0
-      },
-      jsPDF: {
-        unit: "mm",
-        format: "a4",
-        orientation: "portrait"
-      }
-    };
-
-    html2pdf()
-      .set(options)
-      .from(element)
-      .save()
-      .then(() => setExporting(false))
-      .catch((err) => {
-        console.error("PDF error:", err);
-        setExporting(false);
-      });
-  }, 100);
-};
+    setExporting(false);
+    window.print();
+  };
 
   const handleBasicsChange = (field, value) =>
     setResume({ ...resume, basics: { ...resume.basics, [field]: value } });
@@ -361,7 +366,7 @@ const exportPDF = async (e) => {
           fontFamily: "'DM Sans', sans-serif",
           transition: "all 0.2s ease"
         }}>
-          {exporting ? "Generating PDF..." : "⬇ Export as PDF"}
+          {exporting ? "Saving..." : "⬇ Export as PDF"}
         </button>
       </div>
 
@@ -374,7 +379,7 @@ const exportPDF = async (e) => {
         overflowY: "auto",
         background: "radial-gradient(ellipse at 60% 0%, #0f1628 0%, #080810 70%)"
       }}>
-        {/* A4 Resume Sheet — this is what gets exported */}
+        {/* A4 Resume Sheet */}
         <div ref={previewRef} style={{
           width: "794px",
           minHeight: "1123px",
@@ -392,7 +397,8 @@ const exportPDF = async (e) => {
             padding: "48px 26px",
             display: "flex",
             flexDirection: "column",
-            color: "#fff"
+            color: "#fff",
+             minHeight: "1123px"    
           }}>
             {/* Avatar */}
             <div style={{ display: "flex", justifyContent: "center", marginBottom: "32px" }}>
@@ -585,6 +591,7 @@ const exportPDF = async (e) => {
     </div>
   );
 }
+
 
 /* ─── RESUME HELPER COMPONENTS ─── */
 function GoldRule() {
