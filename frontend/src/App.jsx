@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 
-const API_URL = "http://127.0.0.1:5000/api/resume";
+const API_URL = "https://forged-resume.onrender.com/api/resume";
 
 /* ─────────────────────────────────────────────
    FLOATING LABEL INPUT
