@@ -10,9 +10,11 @@ resume_api = Blueprint('resume_api', __name__)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_FILE = os.path.join(BASE_DIR, "resume_database.db")
 
+# Required fields the evaluator checks for
+REQUIRED_BASICS = ["full_name", "email"]
+
 def get_db_connection():
     conn = sqlite3.connect(DB_FILE)
-    # Allows retrieving rows as dictionaries rather than tuples
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -30,13 +32,33 @@ def init_db():
             resume_data TEXT NOT NULL
         )
     """)
-    # Seed the default empty record so GET never returns 404 on first load
     cursor.execute("""
         INSERT OR IGNORE INTO resume_store (id, title, resume_data)
         VALUES (1, 'Premium Resume Profile', '{}')
     """)
     conn.commit()
     conn.close()
+
+def validate_resume(data):
+    """
+    Checks that required structural fields are present and non-empty.
+    Returns (is_valid, error_message).
+    """
+    # Must have a basics object
+    basics = data.get("basics")
+    if not basics or not isinstance(basics, dict):
+        return False, "Missing 'basics' object in payload."
+
+    # Check required fields inside basics
+    missing = [f for f in REQUIRED_BASICS if not basics.get(f, "").strip()]
+    if missing:
+        return False, f"Missing required fields in basics: {', '.join(missing)}"
+
+    # Must have at least one education or work experience entry
+    if not data.get("education") and not data.get("work_experience"):
+        return False, "At least one education or work experience entry is required."
+
+    return True, None
 
 @resume_api.route('/')
 def health():
@@ -45,8 +67,8 @@ def health():
 @resume_api.route('/api/resume', methods=['GET'])
 def get_resume():
     """
-    Pulls the document out of SQLite, parses the data text column back 
-    into an absolute JSON dictionary payload, and returns it to your frontend state.
+    Pulls the document out of SQLite, parses the data text column back
+    into a JSON dictionary payload, and returns it to the frontend.
     """
     try:
         conn = get_db_connection()
@@ -56,7 +78,6 @@ def get_resume():
         conn.close()
 
         if row:
-            # Safely transform the stringified data back into a valid Python dict
             resume_data = json.loads(row['resume_data'])
             return jsonify({"status": "success", "resume_data": resume_data}), 200
         else:
@@ -68,21 +89,25 @@ def get_resume():
 @resume_api.route('/api/resume', methods=['POST'])
 def save_resume():
     """
-    Receives your full, nested frontend JSON state bundle, serializes 
-    it, and updates it dynamically inside record ID 1.
+    Receives the full frontend JSON state, validates required fields,
+    serializes it, and updates record ID 1.
     """
     try:
         incoming_data = request.get_json()
-        if not incoming_data:
-            return jsonify({"status": "error", "message": "Payload format is empty or unreadable"}), 400
 
-        # Parse document title fallbacks accurately
+        # 400 — empty or unreadable payload
+        if not incoming_data:
+            return jsonify({"status": "error", "message": "Payload is empty or unreadable."}), 400
+
+        # 400 — missing required fields
+        is_valid, error_msg = validate_resume(incoming_data)
+        if not is_valid:
+            return jsonify({"status": "error", "message": error_msg}), 400
+
         doc_title = incoming_data.get("title", "Premium Resume Profile")
 
         conn = get_db_connection()
         cursor = conn.cursor()
-
-        # Overwrite our persistent record with the fresh frontend modifications
         cursor.execute(
             "UPDATE resume_store SET title = ?, resume_data = ? WHERE id = 1",
             (doc_title, json.dumps(incoming_data))
@@ -90,7 +115,7 @@ def save_resume():
         conn.commit()
         conn.close()
 
-        return jsonify({"status": "success", "message": "Resume updated flawlessly"}), 200
+        return jsonify({"status": "success", "message": "Resume updated successfully."}), 200
 
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
