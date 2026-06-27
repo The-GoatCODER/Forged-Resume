@@ -1,12 +1,16 @@
 import json
 import sqlite3
+import os
 from flask import Flask
 from flask_cors import CORS
+from dotenv import load_dotenv
 from .routes import resume_api, DB_FILE, get_db_connection
+
+load_dotenv()
 
 def init_db():
     """Initializes SQLite layout tracking matching your exact layout state format."""
-    conn = get_db_connection()  # uses the same absolute path as routes.py
+    conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS resume_store (
@@ -15,7 +19,6 @@ def init_db():
             resume_data TEXT
         )
     ''')
-
     cursor.execute("SELECT COUNT(*) FROM resume_store WHERE id = 1")
     if cursor.fetchone()[0] == 0:
         default_resume = {
@@ -43,14 +46,8 @@ def init_db():
 
 def create_app():
     app = Flask(__name__)
-
-    # Fully open CORS so localhost:5173 faces zero request blocks
+    app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'fallback_dev_key')
     CORS(app, resources={r"/api/*": {"origins": "*"}})
-
-    # Ensure database and table exist on every cold start
     init_db()
-
-    # Register Blueprint routes
     app.register_blueprint(resume_api)
-
     return app

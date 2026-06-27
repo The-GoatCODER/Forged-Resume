@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
-
-const API_URL = "https://forged-resume.onrender.com/api/resume";
+const API_URL = import.meta.env.VITE_API_URL;
 
 /* ─────────────────────────────────────────────
    FLOATING LABEL INPUT
