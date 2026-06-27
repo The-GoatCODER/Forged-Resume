@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import axios from "axios";
+import html2pdf from "html2pdf.js";
+
 const API_URL = import.meta.env.VITE_API_URL;
 
 /* ─────────────────────────────────────────────
@@ -159,13 +161,6 @@ function App() {
       }
     `;
     document.head.appendChild(style);
-
-    // Load html2pdf script dynamically
-    const script = document.createElement("script");
-    script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
-    script.async = true;
-    document.head.appendChild(script);
-
     fetchResume();
   }, []);
 
@@ -185,20 +180,27 @@ function App() {
       alert("Error: " + e.response?.data?.message);
     }
   };
+const exportPDF = async (e) => {
+  e.preventDefault();
 
-  const exportPDF = () => {
-    const element = previewRef.current;
-    if (!element || !window.html2pdf) {
-      alert("PDF engine still loading, please try again.");
-      return;
-    }
+  const element = previewRef.current;
+  if (!element) return;
 
-    setExporting(true);
+  setExporting(true);
 
-    const fileName = resume.basics.full_name
-      ? `${resume.basics.full_name.replace(/\s+/g, "_")}_Resume.pdf`
-      : "Resume.pdf";
+  // Auto-save before exporting
+  try {
+    await axios.post(API_URL, resume);
+  } catch (err) {
+    // continue even if save fails
+  }
 
+  const fileName = resume.basics.full_name
+    ? `${resume.basics.full_name.replace(/\s+/g, "_")}_Resume.pdf`
+    : "Resume.pdf";
+
+  // Small delay so React can render "Generating PDF..." before freezing
+  setTimeout(() => {
     const options = {
       margin: 0,
       filename: fileName,
@@ -206,7 +208,10 @@ function App() {
       html2canvas: {
         scale: 2,
         useCORS: true,
-        letterRendering: true
+        allowTaint: true,
+        letterRendering: true,
+        scrollX: 0,
+        scrollY: 0
       },
       jsPDF: {
         unit: "mm",
@@ -215,13 +220,17 @@ function App() {
       }
     };
 
-    window.html2pdf()
+    html2pdf()
       .set(options)
       .from(element)
       .save()
       .then(() => setExporting(false))
-      .catch(() => setExporting(false));
-  };
+      .catch((err) => {
+        console.error("PDF error:", err);
+        setExporting(false);
+      });
+  }, 100);
+};
 
   const handleBasicsChange = (field, value) =>
     setResume({ ...resume, basics: { ...resume.basics, [field]: value } });
@@ -486,7 +495,6 @@ function App() {
           {/* ── MAIN CONTENT ── */}
           <div style={{ padding: "48px 42px", backgroundColor: "#ffffff" }}>
 
-            {/* Profile */}
             <Section title="Profile">
               <p style={{
                 fontFamily: "'DM Sans', sans-serif",
@@ -500,7 +508,6 @@ function App() {
               </p>
             </Section>
 
-            {/* Skills */}
             <Section title="Expertise">
               <div style={{ display: "flex", flexDirection: "column", gap: "13px" }}>
                 {(resume.skills.length > 0 ? resume.skills : [
@@ -519,7 +526,6 @@ function App() {
               </div>
             </Section>
 
-            {/* Experience */}
             <Section title="Experience">
               <div style={{ display: "flex", flexDirection: "column", gap: "26px" }}>
                 {(resume.work_experience.length > 0 ? resume.work_experience : [
@@ -549,7 +555,6 @@ function App() {
               </div>
             </Section>
 
-            {/* Education */}
             <Section title="Education" last>
               <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
                 {(resume.education.length > 0 ? resume.education : [
