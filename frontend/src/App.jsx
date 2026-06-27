@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -137,9 +137,11 @@ function App() {
     references: []
   });
 
+  const [exporting, setExporting] = useState(false);
+  const previewRef = useRef(null);
+
   useEffect(() => {
     const link = document.createElement("link");
-    // FIXED: Corrected Google Font url parameter from "Cormorant+Garant" to "Cormorant+Garamond"
     link.href = "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap";
     link.rel = "stylesheet";
     document.head.appendChild(link);
@@ -157,6 +159,13 @@ function App() {
       }
     `;
     document.head.appendChild(style);
+
+    // Load html2pdf script dynamically
+    const script = document.createElement("script");
+    script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
+    script.async = true;
+    document.head.appendChild(script);
+
     fetchResume();
   }, []);
 
@@ -175,6 +184,43 @@ function App() {
     } catch (e) {
       alert("Error: " + e.response?.data?.message);
     }
+  };
+
+  const exportPDF = () => {
+    const element = previewRef.current;
+    if (!element || !window.html2pdf) {
+      alert("PDF engine still loading, please try again.");
+      return;
+    }
+
+    setExporting(true);
+
+    const fileName = resume.basics.full_name
+      ? `${resume.basics.full_name.replace(/\s+/g, "_")}_Resume.pdf`
+      : "Resume.pdf";
+
+    const options = {
+      margin: 0,
+      filename: fileName,
+      image: { type: "jpeg", quality: 0.98 },
+      html2canvas: {
+        scale: 2,
+        useCORS: true,
+        letterRendering: true
+      },
+      jsPDF: {
+        unit: "mm",
+        format: "a4",
+        orientation: "portrait"
+      }
+    };
+
+    window.html2pdf()
+      .set(options)
+      .from(element)
+      .save()
+      .then(() => setExporting(false))
+      .catch(() => setExporting(false));
   };
 
   const handleBasicsChange = (field, value) =>
@@ -213,7 +259,6 @@ function App() {
       }}>
         <div style={{ marginBottom: "32px" }}>
           <div style={{ fontSize: "10px", letterSpacing: "0.2em", textTransform: "uppercase", color: "#c9a84c", marginBottom: "6px" }}>Resume Builder</div>
-          {/* FIXED: Font family update for header to cleanly render Garamond */}
           <h1 style={{ margin: 0, fontSize: "22px", fontWeight: "600", color: "#e8edf4", fontFamily: "'Cormorant Garamond', serif", lineHeight: 1.2 }}>Craft Your Story</h1>
           <p style={{ margin: "8px 0 0", fontSize: "12px", color: "#4a5a6a", lineHeight: 1.5 }}>Every field shapes your legacy.</p>
         </div>
@@ -273,6 +318,7 @@ function App() {
         ))}
         <button style={addBtn} onClick={() => addArrayItem("references", { name: "", position: "", contact: "" })}>+ Add Reference</button>
 
+        {/* ── ACTION BUTTONS ── */}
         <button onClick={saveResume} style={{
           width: "100%",
           marginTop: "32px",
@@ -290,6 +336,24 @@ function App() {
         }}>
           Save Resume
         </button>
+
+        <button onClick={exportPDF} disabled={exporting} style={{
+          width: "100%",
+          marginTop: "12px",
+          padding: "14px",
+          background: "transparent",
+          border: "1px solid #c9a84c",
+          borderRadius: "10px",
+          color: exporting ? "#6a7f94" : "#c9a84c",
+          fontWeight: "600",
+          fontSize: "14px",
+          cursor: exporting ? "not-allowed" : "pointer",
+          letterSpacing: "0.04em",
+          fontFamily: "'DM Sans', sans-serif",
+          transition: "all 0.2s ease"
+        }}>
+          {exporting ? "Generating PDF..." : "⬇ Export as PDF"}
+        </button>
       </div>
 
       {/* ══════════════ PREVIEW (RIGHT) ══════════════ */}
@@ -301,8 +365,8 @@ function App() {
         overflowY: "auto",
         background: "radial-gradient(ellipse at 60% 0%, #0f1628 0%, #080810 70%)"
       }}>
-        {/* A4 Resume Sheet */}
-        <div style={{
+        {/* A4 Resume Sheet — this is what gets exported */}
+        <div ref={previewRef} style={{
           width: "794px",
           minHeight: "1123px",
           backgroundColor: "#ffffff",
@@ -364,7 +428,6 @@ function App() {
                   <>Your<span style={{ display: "block", fontStyle: "italic", fontWeight: "400", color: "#b8d4cf" }}>Name</span></>
                 )}
               </h1>
-              {/* Role pill */}
               <div style={{
                 display: "inline-block",
                 marginTop: "10px",
@@ -448,7 +511,7 @@ function App() {
                   <div key={i} style={{ display: "grid", gridTemplateColumns: "155px 1fr 38px", alignItems: "center", gap: "14px" }}>
                     <span style={{ fontSize: "13px", fontWeight: "500", color: "#1f2937", textTransform: "capitalize" }}>{skill.name || "Skill"}</span>
                     <div style={{ height: "6px", background: "#eef0f2", borderRadius: "3px", overflow: "hidden" }}>
-                      <div style={{ height: "100%", width: `${skill.level || 70}%`, background: "linear-gradient(90deg, #1b2d2a, #c9a84c)", borderRadius: "3px", transition: "width 0.5s ease" }} />
+                      <div style={{ height: "100%", width: `${skill.level || 70}%`, background: "linear-gradient(90deg, #1b2d2a, #c9a84c)", borderRadius: "3px" }} />
                     </div>
                     <span style={{ fontSize: "11px", color: "#6b7280", textAlign: "right", fontFamily: "'DM Sans', sans-serif", fontWeight: "500" }}>{skill.level || 70}%</span>
                   </div>
@@ -463,7 +526,6 @@ function App() {
                   { company: "Company Name", role: "Position Title", duration: "2020 – Present", description: "Led initiatives that shaped the organisation's direction, delivering measurable impact across teams and stakeholders." }
                 ]).map((work, i, arr) => (
                   <div key={i} style={{ display: "grid", gridTemplateColumns: "18px 1fr", gap: "16px" }}>
-                    {/* Timeline spine */}
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
                       <div style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#c9a84c", marginTop: "6px", flexShrink: 0 }} />
                       {i < arr.length - 1 && <div style={{ flex: 1, width: "1px", background: "linear-gradient(180deg, #c9a84c55, transparent)", marginTop: "5px" }} />}
@@ -524,7 +586,6 @@ function GoldRule() {
   return <div style={{ height: "1px", background: "linear-gradient(90deg, transparent, rgba(201,168,76,0.5), transparent)", margin: "0 0 26px" }} />;
 }
 
-// FIXED: Font family corrected here for consistent Garamond header styling
 function SideLabel({ children }) {
   return (
     <div style={{
@@ -535,7 +596,7 @@ function SideLabel({ children }) {
       fontWeight: "600",
       marginBottom: "14px",
       fontFamily: "'DM Sans', sans-serif"
-    }}>={children}</div>
+    }}>{children}</div>
   );
 }
 
