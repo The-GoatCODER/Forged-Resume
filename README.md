@@ -102,7 +102,35 @@ For local development set `VITE_API_URL=http://localhost:5000/api/resume`
 | GET | `/api/resume` | Fetch saved resume data |
 | POST | `/api/resume` | Save resume data |
 
-The POST endpoint returns `400 Bad Request` if `basics.full_name` or `basics.email` are missing, or if there's no education or work experience entry.
+The POST endpoint returns `400 Bad Request` if `basics.full_name` or `basics.email` are missing, or if there is no education or work experience entry.
+
+---
+
+## Testing the API
+
+**GET** — check if the API is running:
+
+```
+https://forged-resume.onrender.com/api/resume
+```
+
+**POST 400 validation** — open browser console on any page and paste:
+
+```js
+fetch('https://forged-resume.onrender.com/api/resume', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ title: "test", basics: { full_name: "", email: "" }, education: [], work_experience: [] })
+})
+.then(r => r.json())
+.then(console.log)
+```
+
+Expected response:
+
+```json
+{ "message": "Missing required fields in basics: full_name, email", "status": "error" }
+```
 
 ---
 
