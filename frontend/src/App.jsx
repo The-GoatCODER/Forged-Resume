@@ -273,15 +273,6 @@ function App() {
         ))}
         <button style={addBtn} onClick={() => addArrayItem("references", { name: "", position: "", contact: "" })}>+ Add Reference</button>
 
-        <button onClick={saveResume} style={{
-          width: "100%", marginTop: "32px", padding: "14px",
-          background: "linear-gradient(135deg, #c9a84c 0%, #a87c2a 100%)",
-          border: "none", borderRadius: "10px", color: "#0d0d1a",
-          fontWeight: "600", fontSize: "14px", cursor: "pointer",
-          letterSpacing: "0.04em", fontFamily: "'DM Sans', sans-serif",
-          boxShadow: "0 4px 20px rgba(201,168,76,0.25)"
-        }}>Save Resume</button>
-
         <button onClick={exportPDF} disabled={exporting} style={{
           width: "100%", marginTop: "12px", padding: "14px",
           background: "transparent", border: "1px solid #c9a84c",
@@ -344,11 +335,10 @@ function App() {
                 fontWeight: "600", margin: "0 0 4px", lineHeight: 1.15, color: "#ffffff"
               }}>
                 {resume.basics.full_name ? (
-                  <>
-                    {resume.basics.full_name.split(" ")[0]}
-                    <span style={{ display: "block", fontStyle: "italic", fontWeight: "400", color: "#b8d4cf" }}>
-                      {resume.basics.full_name.split(" ").slice(1).join(" ")}
-                    </span>
+                  <>{resume.basics.full_name.split(" ")[0]}
+<span style={{ display: "block", fontStyle: "normal", fontWeight: "600", color: "#ffffff" }}>
+  {resume.basics.full_name.split(" ").slice(1).join(" ")}
+</span>
                   </>
                 ) : (
                   <>Your<span style={{ display: "block", fontStyle: "italic", fontWeight: "400", color: "#b8d4cf" }}>Name</span></>
